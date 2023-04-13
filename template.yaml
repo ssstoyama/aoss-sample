@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Resources:
+  SampleCollection:
+    Type: 'AWS::OpenSearchServerless::Collection'
+    Properties:
+      Name: sample-collection
+      Type: SEARCH
+    DependsOn: SampleEncryptionPolicy
+  SampleEncryptionPolicy:
+    Type: 'AWS::OpenSearchServerless::SecurityPolicy'
+    Properties:
+      Name: sample-encryption-policy
+      Type: encryption
+      Policy: >-
+        {
+          "Rules":[
+            {"ResourceType":"collection","Resource":["collection/sample-collection"]}
+          ],
+          "AWSOwnedKey":true
+        }
+  SampleNetworkPolicy:
+    Type: 'AWS::OpenSearchServerless::SecurityPolicy'
+    Properties:
+      Name: sample-network-policy
+      Type: network
+      Policy: >-
+        [
+          {
+            "Rules":[
+              {"ResourceType":"collection","Resource":["collection/sample-collection"]}
+            ],
+            "AllowFromPublic":true
+          }
+        ]
+  SampleAccessPolicy:
+    Type: 'AWS::OpenSearchServerless::AccessPolicy'
+    Properties:
+      Name: sample-access-policy
+      Type: data
+      Policy: !Sub >-
+        [
+          {
+            "Rules":[
+              {"ResourceType":"index","Resource":["index/sample-collection/*"],"Permission":["aoss:*"]},
+              {"ResourceType":"collection","Resource":["collection/sample-collection"],"Permission":["aoss:*"]}
+            ],
+            "Principal":["arn:aws:iam::${AWS::AccountId}:role/sample-aoss-role"]
+          }
+        ]
+  SampleAossRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: sample-aoss-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+Outputs:
+  Endpoint:
+    Value: !GetAtt SampleCollection.CollectionEndpoint
+  Role:
+    Value: !GetAtt SampleAossRole.Arn
